@@ -25,7 +25,7 @@ export MOZBUILD_STATE_PATH="${MK_BASHSRCDIR}/${mk_mozbuild_state_path_base}"
 
 mk_edist_dir="${MK_BASHSRCDIR}/entropy-dist"
 mk_ver="$(cat browser/config/version.txt)"
-mk_flver="$(cat browser/config/version_display.txt)"
+mk_eflver="$(cat browser/config/version_display.txt)"
 mk_gpgverifyID='42EBF24476885D91'
 mk_platform="$(uname -m)"
 mk_objdir="${MK_BASHSRCDIR}/obj-${mk_platform}-pc-linux-gnu"
@@ -39,13 +39,13 @@ if [[ $MK_TESTP -ne 1 ]] ; then
         git -C "$MK_BASHSRCDIR" submodule deinit --force --all
         git -C "$MK_BASHSRCDIR" submodule update --init --recursive
         mk_gitrev="$(git -C "$MK_BASHSRCDIR" describe --tags)"
-        if [[ $mk_gitrev =~ ^v[0-9]+\. ]] ; then
-            if [[ $mk_gitrev =~ '-'[0-9]+-g.+$ ]] ; then
-                mk_flver="${mk_flver}_git:${mk_gitrev}"
-            fi
+        if [[ $mk_gitrev =~ ^(entropy-)?v[0-9]+\. ]] && \
+               [[ ! $mk_gitrev =~ '-'[0-9]+-g.+$ ]]
+        then
+            :
         else
             mk_gitrev="$(git -C "$MK_BASHSRCDIR" rev-parse --short HEAD)"
-            mk_flver="${mk_flver}_git:${mk_gitrev}"
+            mk_eflver="${mk_eflver}_entropy_git:${mk_gitrev}"
         fi
     else
         if [[ -e "${mk_edist_dir}" ]] ; then rm -rvi "$mk_edist_dir" ; fi
@@ -101,7 +101,10 @@ fi
 
 mk_func_call_marh --no-interactive bootstrap --application-choice browser
 
-mk_func_call_marh build
+if ! mk_func_call_marh build ; then
+    # try twice build for first fail which may caused by OOM
+    mk_func_call_marh build
+fi
 
 mk_func_call_marh package
 
@@ -120,13 +123,13 @@ mkdir -p "${mk_edist_dir}/${mk_mozbuild_state_path_base}"
     [[ $MK_TESTP -eq 1 ]] && exit 0
     cd "$mk_distdir"
     for i in floorp-*.bz2 ; do
-        mv "$i" "${mk_edist_dir}/${i/"$mk_ver"/"$mk_flver"}"
+        mv "$i" "${mk_edist_dir}/${i/"$mk_ver"/"$mk_eflver"}"
     done
     for i in floorp-*.zip ; do
-        mv "$i" "${mk_edist_dir}/${i/"$mk_ver"/"$mk_flver"}"
+        mv "$i" "${mk_edist_dir}/${i/"$mk_ver"/"$mk_eflver"}"
     done
     for i in floorp-*.txt ; do
-        mv "$i" "${mk_edist_dir}/${i/"$mk_ver"/"$mk_flver"}"
+        mv "$i" "${mk_edist_dir}/${i/"$mk_ver"/"$mk_eflver"}"
     done
 )
 
@@ -138,17 +141,17 @@ fi
 if [[ -e ${MK_BASHSRCDIR}/.git ]] ; then
     echo "Archiving source tree ..."
     git archive --format=tar \
-        --output="${mk_edist_dir}/floorp-${mk_flver}.src.tar" \
+        --output="${mk_edist_dir}/floorp-${mk_eflver}.src.tar" \
         HEAD
     echo "Archiving source submodules tree recursively ..."
     git submodule --quiet foreach --recursive \
         'git archive --format=tar --prefix="${displaypath}/" -o __submodule__.tar HEAD'
     echo "Combination of source and submodules tree ..."
     git submodule --quiet foreach --recursive \
-        "cd '${mk_edist_dir}'; tar --concatenate --file='floorp-${mk_flver}.src.tar' \"${MK_BASHSRCDIR}/\${displaypath}/__submodule__.tar\"; rm -fv \"${MK_BASHSRCDIR}/\${displaypath}/__submodule__.tar\""
+        "cd '${mk_edist_dir}'; tar --concatenate --file='floorp-${mk_eflver}.src.tar' \"${MK_BASHSRCDIR}/\${displaypath}/__submodule__.tar\"; rm -fv \"${MK_BASHSRCDIR}/\${displaypath}/__submodule__.tar\""
     cd "${mk_edist_dir}"
     echo "Gzip srouce archive ..."
-    gzip -9 "floorp-${mk_flver}.src.tar"
+    gzip -9 "floorp-${mk_eflver}.src.tar"
 fi
 
 cd "${mk_edist_dir}"
