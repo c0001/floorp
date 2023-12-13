@@ -27,7 +27,10 @@ mk_edist_dir="${MK_BASHSRCDIR}/entropy-dist"
 mk_ver="$(cat browser/config/version.txt)"
 mk_flver="$(cat browser/config/version_display.txt)"
 mk_gpgverifyID='42EBF24476885D91'
-mk_distdir='obj-x86_64-pc-linux-gnu/dist'
+mk_platform="$(uname -m)"
+mk_objdir="${MK_BASHSRCDIR}/obj-${mk_platform}-pc-linux-gnu"
+mk_distdir="${MK_BASHSRCDIR}/${mk_objdir}/dist"
+mk_gitrev=''
 
 [[ -f "${MK_BASHSRCDIR}/mozconfig" ]] && rm -f "${MK_BASHSRCDIR}/mozconfig"
 if [[ $MK_TESTP -ne 1 ]] ; then
@@ -35,13 +38,11 @@ if [[ $MK_TESTP -ne 1 ]] ; then
         git -C "$MK_BASHSRCDIR" clean -xfd
         git -C "$MK_BASHSRCDIR" submodule deinit --force --all
         git -C "$MK_BASHSRCDIR" submodule update --init --recursive
+        mk_gitrev="$(git -C "$MK_BASHSRCDIR" rev-parse --short HEAD)"
+        mk_flver="${mk_flver}_git:${mk_gitrev}"
     else
         if [[ -e "${mk_edist_dir}" ]] ; then rm -rvi "$mk_edist_dir" ; fi
-        if [[ -e "${mk_distdir}" ]] ; then  rm -rvi "$mk_distdir"; fi
-        if [[ -n "${MOZBUILD_STATE_PATH}" ]] && \
-               [[ -e "${MOZBUILD_STATE_PATH}" ]]; then
-            rm -rvi "${MOZBUILD_STATE_PATH}"
-        fi
+        if [[ -e "${mk_objdir}" ]] ; then  rm -rvi "$mk_objdir"; fi
     fi
 fi
 
