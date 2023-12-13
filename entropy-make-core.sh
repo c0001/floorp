@@ -38,8 +38,15 @@ if [[ $MK_TESTP -ne 1 ]] ; then
         git -C "$MK_BASHSRCDIR" clean -xfd
         git -C "$MK_BASHSRCDIR" submodule deinit --force --all
         git -C "$MK_BASHSRCDIR" submodule update --init --recursive
-        mk_gitrev="$(git -C "$MK_BASHSRCDIR" rev-parse --short HEAD)"
-        mk_flver="${mk_flver}_git:${mk_gitrev}"
+        mk_gitrev="$(git -C "$MK_BASHSRCDIR" describe --tags)"
+        if [[ $mk_gitrev =~ ^v[0-9]+\. ]] ; then
+            if [[ $mk_gitrev =~ '-'[0-9]+-g.+$ ]] ; then
+                mk_flver="${mk_flver}_git:${mk_gitrev}"
+            fi
+        else
+            mk_gitrev="$(git -C "$MK_BASHSRCDIR" rev-parse --short HEAD)"
+            mk_flver="${mk_flver}_git:${mk_gitrev}"
+        fi
     else
         if [[ -e "${mk_edist_dir}" ]] ; then rm -rvi "$mk_edist_dir" ; fi
         if [[ -e "${mk_objdir}" ]] ; then  rm -rvi "$mk_objdir"; fi
