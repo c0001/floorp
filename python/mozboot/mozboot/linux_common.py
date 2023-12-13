@@ -71,20 +71,25 @@ class LinuxBootstrapper(MobileAndroidBootstrapper):
         pass
 
     def install_system_packages(self):
-        self.install_packages(
-            [
-                "bash",
-                "findutils",  # contains xargs
-                "gzip",
-                "libxml2",  # used by bootstrapped clang
-                "m4",
-                "make",
-                "perl",
-                "tar",
-                "unzip",
-                "watchman",
-            ]
-        )
+        # self.install_packages(
+        #     [
+        #         "bash",
+        #         "findutils",  # contains xargs
+        #         "gzip",
+        #         "libxml2",  # used by bootstrapped clang
+        #         "m4",
+        #         "make",
+        #         "perl",
+        #         "tar",
+        #         "unzip",
+        #         "watchman",
+        #     ]
+        # )
+
+        # NOTE: since entropy-spec make procedure has its own context
+        # which we do not need to install sys pkgs via this lib any
+        # more.
+        pass
 
     def install_browser_packages(self, mozconfig_builder, artifact_mode=False):
         pass
