@@ -29,28 +29,28 @@ mk_eflver="$(cat browser/config/version_display.txt)"
 mk_gpgverifyID='42EBF24476885D91'
 mk_platform="$(uname -m)"
 mk_objdir="${MK_BASHSRCDIR}/obj-${mk_platform}-pc-linux-gnu"
-mk_distdir="${MK_BASHSRCDIR}/${mk_objdir}/dist"
+mk_distdir="${MK_BASHSRCDIR}/obj-${mk_platform}-pc-linux-gnu/dist"
 mk_gitrev=''
 
 [[ -f "${MK_BASHSRCDIR}/mozconfig" ]] && rm -f "${MK_BASHSRCDIR}/mozconfig"
-if [[ $MK_TESTP -ne 1 ]] ; then
-    if [[ -e ${MK_BASHSRCDIR}/.git ]] ; then
+if [[ -e ${MK_BASHSRCDIR}/.git ]] ; then
+    if [[ $MK_TESTP -eq 0 ]] ; then
         git -C "$MK_BASHSRCDIR" clean -xfd
-        git -C "$MK_BASHSRCDIR" submodule deinit --force --all
-        git -C "$MK_BASHSRCDIR" submodule update --init --recursive
-        mk_gitrev="$(git -C "$MK_BASHSRCDIR" describe --tags)"
-        if [[ $mk_gitrev =~ ^(entropy-)?v[0-9]+\. ]] && \
-               [[ ! $mk_gitrev =~ '-'[0-9]+-g.+$ ]]
-        then
-            :
-        else
-            mk_gitrev="$(git -C "$MK_BASHSRCDIR" rev-parse --short HEAD)"
-            mk_eflver="${mk_eflver}_entropy_git:${mk_gitrev}"
-        fi
-    else
-        if [[ -e "${mk_edist_dir}" ]] ; then rm -rvi "$mk_edist_dir" ; fi
-        if [[ -e "${mk_objdir}" ]] ; then  rm -rvi "$mk_objdir"; fi
     fi
+    git -C "$MK_BASHSRCDIR" submodule deinit --force --all
+    git -C "$MK_BASHSRCDIR" submodule update --init --recursive
+    mk_gitrev="$(git -C "$MK_BASHSRCDIR" describe --tags)"
+    if [[ $mk_gitrev =~ ^(entropy-)?v[0-9]+\. ]] && \
+           [[ ! $mk_gitrev =~ '-'[0-9]+-g.+$ ]]
+    then
+        :
+    else
+        mk_gitrev="$(git -C "$MK_BASHSRCDIR" rev-parse --short HEAD)"
+        mk_eflver="${mk_eflver}_entropy_git:${mk_gitrev}"
+    fi
+elif [[ $MK_TESTP -eq 0 ]] ; then
+    if [[ -e "${mk_edist_dir}" ]] ; then rm -rvi "$mk_edist_dir" ; fi
+    if [[ -e "${mk_objdir}" ]] ; then  rm -rvi "$mk_objdir"; fi
 fi
 
 cp "${MK_BASHSRCDIR}/.github/workflows/src/linux/shared/mozconfig_linux_base" \
@@ -147,8 +147,13 @@ if [[ -e ${MK_BASHSRCDIR}/.git ]] ; then
     git submodule --quiet foreach --recursive \
         'git archive --format=tar --prefix="${displaypath}/" -o __submodule__.tar HEAD'
     echo "Combination of source and submodules tree ..."
+    # use force-local option to allow colon char in archive name: see
+    # https://superuser.com/questions/1720172/what-does-tar-cannot-connect-to-resolve-failed-mean
     git submodule --quiet foreach --recursive \
-        "cd '${mk_edist_dir}'; tar --concatenate --file='floorp-${mk_eflver}.src.tar' \"${MK_BASHSRCDIR}/\${displaypath}/__submodule__.tar\"; rm -fv \"${MK_BASHSRCDIR}/\${displaypath}/__submodule__.tar\""
+        "cd '${mk_edist_dir}'; tar --concatenate --force-local \
+--file='floorp-${mk_eflver}.src.tar' \
+\"${MK_BASHSRCDIR}/\${displaypath}/__submodule__.tar\"; \
+rm -fv \"${MK_BASHSRCDIR}/\${displaypath}/__submodule__.tar\""
     cd "${mk_edist_dir}"
     echo "Gzip srouce archive ..."
     gzip -9 "floorp-${mk_eflver}.src.tar"
