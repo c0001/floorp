@@ -150,9 +150,10 @@ if [[ -e ${MK_BASHSRCDIR}/.git ]] ; then
     # use force-local option to allow colon char in archive name: see
     # https://superuser.com/questions/1720172/what-does-tar-cannot-connect-to-resolve-failed-mean
     git submodule --quiet foreach --recursive \
-        "cd '${mk_edist_dir}'; tar --concatenate --force-local \
---file='floorp-${mk_eflver}.src.tar' \
-\"${MK_BASHSRCDIR}/\${displaypath}/__submodule__.tar\"; \
+        "cd '${mk_edist_dir}'                           && \
+tar --concatenate --force-local                            \
+--file='floorp-${mk_eflver}.src.tar'                       \
+\"${MK_BASHSRCDIR}/\${displaypath}/__submodule__.tar\"  && \
 rm -fv \"${MK_BASHSRCDIR}/\${displaypath}/__submodule__.tar\""
     cd "${mk_edist_dir}"
     echo "Gzip srouce archive ..."
