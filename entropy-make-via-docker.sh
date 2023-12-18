@@ -126,5 +126,5 @@ export no_proxy='${no_proxy}';                \
 export -p ;                                   \
 echo 'Test internet capable ...' ;            \
 curl -I www.google.com ;                      \
-echo 'with user \$(id -a) ...' ; sleep 10 ;   \
+echo \\\"with user \\\$(id -a) ...\\\" ; sleep 10 ;   \
 bash entropy-make-core.sh ;\""
