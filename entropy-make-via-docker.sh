@@ -125,6 +125,7 @@ export NO_PROXY='${NO_PROXY}';                \
 export no_proxy='${no_proxy}';                \
 export MK_OPT_NO_OPTIMIZATION='${MK_OPT_NO_OPTIMIZATION}' ; \
 export MK_VIA_DOCKER=true ;                   \
+export MK_TESTP='${MK_TESTP}' ;               \
 export -p ;                                   \
 echo 'Test internet capable ...' ;            \
 curl -I www.google.com ;                      \

@@ -11,10 +11,10 @@ while [ -h "$MK_BASHRCNAME" ]; do # resolve $MK_BASHRCNAME until the file is no 
 done
 MK_BASHSRCDIR="$( cd -P "$( dirname "$MK_BASHRCNAME" )" >/dev/null && pwd )"
 
-if [[ $1 = 'test' ]]; then
-    MK_TESTP=1
+if [[ $MK_TESTP = 'test' ]] || [[ $1 = 'test' ]]; then
+    export MK_TESTP=1
 else
-    MK_TESTP=0
+    export MK_TESTP=0
 fi
 
 # Multi threads 'xz' enc/dec task for fasting the procedure See:
@@ -52,10 +52,10 @@ if [[ -e ${MK_BASHSRCDIR}/.git ]] ; then
         mk_gitrev="$(git -C "$MK_BASHSRCDIR" rev-parse --short HEAD)"
         mk_eflver="${mk_eflver}_entropy_git:${mk_gitrev}"
     fi
-else
-    if [[ -e "${mk_edist_dir}" ]] ; then rm -rfv "$mk_edist_dir" ; fi
-    if [[ $MK_TESTP -eq 0 ]] && [[ -e "${mk_objdir}" ]] ; then  rm -rfv "$mk_objdir"; fi
 fi
+if [[ -e "${mk_edist_dir}" ]] ; then rm -rfv "$mk_edist_dir" ; fi
+if [[ $MK_TESTP -eq 0 ]] && [[ -e "${mk_objdir}" ]] ; then  rm -rfv "$mk_objdir"; fi
+
 
 cp "${MK_BASHSRCDIR}/.github/workflows/src/linux/shared/mozconfig_linux_base" \
    "${MK_BASHSRCDIR}/mozconfig"
