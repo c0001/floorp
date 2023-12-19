@@ -82,7 +82,7 @@ MK_DEBIAN_DEPS=(
     fonts-dejima-mincho
     iso-codes
     # entropy spec deps
-    util-linux coreutils passwd curl
+    util-linux coreutils passwd curl xz-utils
 )
 
 # we should add a fake host entry to prevent pacman replace
@@ -123,6 +123,8 @@ export HTTPS_PROXY='${HTTPS_PROXY}';          \
 export https_proxy='${https_proxy}';          \
 export NO_PROXY='${NO_PROXY}';                \
 export no_proxy='${no_proxy}';                \
+export MK_OPT_NO_OPTIMIZATION='${MK_OPT_NO_OPTIMIZATION}' ; \
+export MK_VIA_DOCKER=true ;                   \
 export -p ;                                   \
 echo 'Test internet capable ...' ;            \
 curl -I www.google.com ;                      \

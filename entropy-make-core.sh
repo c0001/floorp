@@ -17,6 +17,10 @@ else
     MK_TESTP=0
 fi
 
+# Multi threads 'xz' enc/dec task for fasting the procedure See:
+# https://stackoverflow.com/a/33441796
+export XZ_DEFAULTS="-T 0"
+
 export MOZ_BUILD_DATE="$(printf "%(%Y%m%d%H%M%S)T\n")"
 # change default moz state dir '~/.mozbuild' to our spec, see more of docstring under
 # 'build/mach_initialize.py'
@@ -48,9 +52,9 @@ if [[ -e ${MK_BASHSRCDIR}/.git ]] ; then
         mk_gitrev="$(git -C "$MK_BASHSRCDIR" rev-parse --short HEAD)"
         mk_eflver="${mk_eflver}_entropy_git:${mk_gitrev}"
     fi
-elif [[ $MK_TESTP -eq 0 ]] ; then
-    if [[ -e "${mk_edist_dir}" ]] ; then rm -rvi "$mk_edist_dir" ; fi
-    if [[ -e "${mk_objdir}" ]] ; then  rm -rvi "$mk_objdir"; fi
+else
+    if [[ -e "${mk_edist_dir}" ]] ; then rm -rfv "$mk_edist_dir" ; fi
+    if [[ $MK_TESTP -eq 0 ]] && [[ -e "${mk_objdir}" ]] ; then  rm -rfv "$mk_objdir"; fi
 fi
 
 cp "${MK_BASHSRCDIR}/.github/workflows/src/linux/shared/mozconfig_linux_base" \
@@ -59,6 +63,14 @@ cp "${MK_BASHSRCDIR}/.github/workflows/src/linux/shared/mozconfig_linux_base" \
 function mk_func_add_mozconf ()
 {
     echo "$1" >> "${MK_BASHSRCDIR}/mozconfig"
+}
+
+function mk_func_del_mozconf ()
+{
+    [[ ! "$1" =~ '|' ]] || \
+        { echo 'mk_func_del_mozconf match \"|\" char in patterh: $1' ; \
+          exit 1; }
+    sed -i "s|${1}|# ${1}|g" "${MK_BASHSRCDIR}/mozconfig"
 }
 
 function mk_func_call_marh ()
@@ -72,7 +84,13 @@ function mk_func_call_marh ()
 
 mk_func_add_mozconf 'ac_add_options --with-branding=browser/branding/official'
 mk_func_add_mozconf 'ac_add_options --disable-updater'
-mk_func_add_mozconf 'ac_add_options MOZ_PGO=1'
+if [[ $MK_OPT_NO_OPTIMIZATION != 'true' ]] ; then
+    mk_func_add_mozconf 'ac_add_options MOZ_PGO=1'
+else
+    mk_func_del_mozconf 'ac_add_options --enable-optimize="-O3"'
+    mk_func_del_mozconf 'export RUSTC_OPT_LEVEL=2'
+    mk_func_del_mozconf 'ac_add_options --enable-lto'
+fi
 mk_func_add_mozconf "mk_add_options 'export RUSTC_WRAPPER=${MOZBUILD_STATE_PATH}/sccache/sccache'"
 mk_func_add_mozconf "mk_add_options 'export CCACHE_CPP2=yes'"
 mk_func_add_mozconf "ac_add_options --with-ccache=${MOZBUILD_STATE_PATH}/sccache/sccache"
@@ -99,7 +117,7 @@ else
     unset -v WAYLAND_DISPLAY
 fi
 
-mk_func_call_marh --no-interactive bootstrap --application-choice browser
+./mach --no-interactive bootstrap --application-choice browser
 
 if ! mk_func_call_marh build ; then
     # try twice build for first fail which may caused by OOM
@@ -118,25 +136,35 @@ if ps -p "$mk_xvfb_procid" &>/dev/null ; then
     kill "$mk_xvfb_procid"
 fi
 
-mkdir -p "${mk_edist_dir}/${mk_mozbuild_state_path_base}"
+mkdir -p "${mk_edist_dir}"
 (
-    [[ $MK_TESTP -eq 1 ]] && exit 0
-    cd "$mk_distdir"
-    for i in floorp-*.bz2 ; do
-        mv "$i" "${mk_edist_dir}/${i/"$mk_ver"/"$mk_eflver"}"
-    done
-    for i in floorp-*.zip ; do
-        mv "$i" "${mk_edist_dir}/${i/"$mk_ver"/"$mk_eflver"}"
-    done
-    for i in floorp-*.txt ; do
-        mv "$i" "${mk_edist_dir}/${i/"$mk_ver"/"$mk_eflver"}"
-    done
+    set -ex
+    if [[ $MK_TESTP -eq 0 ]] ; then
+        cd "$mk_distdir"
+        for i in floorp-*.bz2 ; do
+            mv "$i" "${mk_edist_dir}/${i/"$mk_ver"/"$mk_eflver"}"
+        done
+        for i in floorp-*.zip ; do
+            mv "$i" "${mk_edist_dir}/${i/"$mk_ver"/"$mk_eflver"}"
+        done
+        for i in floorp-*.txt ; do
+            mv "$i" "${mk_edist_dir}/${i/"$mk_ver"/"$mk_eflver"}"
+        done
+    fi
 )
 
-if [[ -d "${MOZBUILD_STATE_PATH}"/toolchains ]] ; then
-    mv "${MOZBUILD_STATE_PATH}"/toolchains \
-       "${mk_edist_dir}/${mk_mozbuild_state_path_base%/}/"
-fi
+(
+    set -ex
+    [[ ! -e "${mk_edist_dir}/${mk_mozbuild_state_path_base%/}.tar.xz" ]]
+    if [[ -d "${MOZBUILD_STATE_PATH}"/toolchains ]] ; then
+        i="${MOZBUILD_STATE_PATH%/}";
+        j="${i%/*}"
+        i="${i##*/}"
+        tar -Jcf \
+            "${mk_edist_dir}/${mk_mozbuild_state_path_base%/}.tar.xz" \
+            -C "$j" "${i}/toolchains"
+    fi
+)
 
 if [[ -e ${MK_BASHSRCDIR}/.git ]] ; then
     echo "Archiving source tree ..."
@@ -156,18 +184,42 @@ tar --concatenate --force-local                            \
 \"${MK_BASHSRCDIR}/\${displaypath}/__submodule__.tar\"  && \
 rm -fv \"${MK_BASHSRCDIR}/\${displaypath}/__submodule__.tar\""
     cd "${mk_edist_dir}"
-    echo "Gzip srouce archive ..."
-    gzip -9 "floorp-${mk_eflver}.src.tar"
+    echo "XZ srouce archive ..."
+    xz "floorp-${mk_eflver}.src.tar"
 fi
 
 cd "${mk_edist_dir}"
 cat <<EOF > README.txt
 
-To recompile source, mv the '.mozbuild' to decompressed source archive
-root path for reusing the SCCACHE which used for this distribution for
-preventing re-downloading artifacts and keep compile env consist.a
+To recompile source, extract the '.mozbuild.tar.xz' to decompressed
+source archive root path for reusing the SCCACHE which used for this
+distribution for preventing re-downloading artifacts and keep compile
+env consist.
+
+The RUST_TOOLCHAIN_CACHE.tar.xz is the rust toolchain cache tarball
+used in this distribution, include CARGO_HOME (.cargo) and RUST_HOME
+(.rustup), extract it and migerate the contents in corresponding ENV
+vars specified places.
 
 EOF
+
+(
+    set -ex
+    # we should either populate cargo caches since moz build relying
+    # on various rust deps hosted in github.com which are not included
+    # in source tarball.
+    declare -a rust_hs=()
+    for i in '.cargo' '.rustup' ; do
+        if [[ -d ${HOME}/${i} ]] ; then
+            rust_hs+=( "${i}")
+        fi
+    done
+    if [[ $MK_VIA_DOCKER = 'true' ]] && [[ -n "${rust_hs[*]}" ]]; then
+        [[ ! -e ${mk_edist_dir}/RUST_TOOLCHAIN_CACHE.tar.xz ]]
+        cd "${HOME}"
+        tar -Jcf "${mk_edist_dir}/RUST_TOOLCHAIN_CACHE.tar.xz" "${rust_hs[@]}"
+    fi
+)
 
 echo "Generate sha256sum hash log for distributions ..."
 mk_dist_shahash="$(find . -type f -print0 | xargs --null sha256sum -b)"
