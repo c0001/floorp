@@ -581,6 +581,18 @@ export var SessionStore = {
           aState.selectedWindow--;
         }
       }
+
+      // Floorp injections
+      // Remove SSB window state.
+      // SSB windows should be not restored, so we don't need to keep their state.
+      if (win.tabs[0]) {
+        if (win.tabs[0].floorpSSB) {
+          aState.windows.splice(i, 1);
+          if (aState.selectedWindow > i) {
+            aState.selectedWindow--;
+          }
+        }
+      }
     }
   },
 
@@ -1910,7 +1922,10 @@ var SessionStoreInternal = {
     let completionPromise = Promise.resolve();
 
     // Floorp Injections
-    if(aWindow.document.documentElement.getAttribute("FloorpEnableSSBWindow") == "true"){
+    if (
+      aWindow.document.documentElement.getAttribute("FloorpEnableSSBWindow") ==
+      "true"
+    ) {
       return completionPromise;
     }
     // this window was about to be restored - conserve its original data, if any
@@ -4044,6 +4059,13 @@ var SessionStoreInternal = {
       winData.sizemodeBeforeMinimized = winData.sizemode;
     }
 
+    let windowUuid = aWindow.gWorkspaces._windowId;
+    if (windowUuid) {
+      winData.windowUuid = windowUuid;
+    } else {
+      delete winData.windowUuid;
+    }
+
     var hidden = WINDOW_HIDEABLE_FEATURES.filter(function (aItem) {
       return aWindow[aItem] && !aWindow[aItem].visible;
     });
@@ -5089,7 +5111,8 @@ var SessionStoreInternal = {
         "screenY" in aWinData ? +aWinData.screenY : NaN,
         aWinData.sizemode || "",
         aWinData.sizemodeBeforeMinimized || "",
-        aWinData.sidebar || ""
+        aWinData.sidebar || "",
+        aWinData.windowUuid || ""
       );
     }, 0);
   },
@@ -5119,7 +5142,8 @@ var SessionStoreInternal = {
     aTop,
     aSizeMode,
     aSizeModeBeforeMinimized,
-    aSidebar
+    aSidebar,
+    aWindowId
   ) {
     var win = aWindow;
     var _this = this;
@@ -5269,6 +5293,20 @@ var SessionStoreInternal = {
       ) {
         aWindow.SidebarUI.showInitially(aSidebar);
       }
+
+      let { WorkspacesWindowUuidService } = ChromeUtils.importESModule(
+        "resource:///modules/WorkspacesService.sys.mjs"
+      );
+
+      // workspaces Window Id
+      if (aWindowId) {
+        console.log("SessionStore: restoring window with id " + aWindowId);
+        aWindow.gWorkspaces._windowId = aWindowId;
+      } else {
+        aWindow.gWorkspaces._windowId = WorkspacesWindowUuidService.getGeneratedUuid();
+      }
+      aWindow.gWorkspaces.init();
+
       // since resizing/moving a window brings it to the foreground,
       // we might want to re-focus the last focused window
       if (this.windowToFocus) {

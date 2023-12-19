@@ -270,7 +270,7 @@ jobs:
       - uses: actions/setup-python@v4
         if: ${{ env.ARCH_TYPE == 'x86_64' }}
         with:
-          python-version: '3.10' 
+          python-version: '3.11' 
 
       - name: setup environment 🌲
         run: |
@@ -413,5 +413,20 @@ jobs:
         draft: false
         prerelease: true
         token: ${{ github.token }}
-    env:
-      GITHUB_REPOSITORY: ${{ github.repository }}
+      env:
+       GITHUB_REPOSITORY: ${{ github.repository }}
+
+    - name: Upload update.xml file to Ablaze server 📤
+      run: |
+        curl -X POST \
+          -H "Authorization: token ${{ secrets.PAT }}" \
+          -H "Accept: application/vnd.github.v3+json" \
+          "https://api.github.com/repos/Floorp-Projects/Floorp-Updates/actions/workflows/update-beta-updatexml-files.yml/dispatches" \
+          -d '{
+            "ref": "main",
+            "inputs": {
+              "win-x86_64-update-xml": "https://github.com/Floorp-Projects/Floorp/releases/download/beta/WINNT-x86_64.xml",
+              "linux-x86_64-update-xml": "https://github.com/Floorp-Projects/Floorp/releases/download/beta/LINUX-x86_64.xml",
+              "macOS-Universal-update-xml": "https://github.com/Floorp-Projects/Floorp/releases/download/beta/DARWIN-Universal.xml"
+            }
+          }'
