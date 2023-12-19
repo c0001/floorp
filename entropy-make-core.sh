@@ -84,7 +84,7 @@ function mk_func_call_marh ()
 
 mk_func_add_mozconf 'ac_add_options --with-branding=browser/branding/official'
 mk_func_add_mozconf 'ac_add_options --disable-updater'
-if [[ $MK_OPT_NO_OPTIMIZATION != 'true' ]] ; then
+if [[ $MK_OPT_NO_OPTIMIZATION != '1' ]] ; then
     mk_func_add_mozconf 'ac_add_options MOZ_PGO=1'
 else
     mk_func_del_mozconf 'ac_add_options --enable-optimize="-O3"'
